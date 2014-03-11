@@ -1,4 +1,5 @@
 (ns garden.selectors
+  (:refer-clojure :exclude [map meta var])
   (:require [garden.protocols :as p])
   #+cljs
   (:require-macros [garden.selectors :refer :all])
@@ -26,7 +27,8 @@
     (invoke [_ a ...]
       (str (p/selector x) (p/selector a) ...))"
   [x] 
-  (let [syms (map (comp symbol str char) (range 0x61 0x75))
+  (let [map clojure.core/map
+        syms (map (comp symbol str char) (range 0x61 0x75))
         argslists (map
                    (fn [i]
                      (vec (cons '_ (take i syms))))
@@ -109,6 +111,128 @@
                     (let [x `(format ~fmt (p/selector (apply ~fn1 ~args)))
                           s `(reify
                                ~@(selector-impl x)
-                               ~@(invoke-impl x))]
+                               ~@(ifn-impl x))]
                       s)))]
     `(def ~sym ~fn2)))
+
+(def ^:private html-tags
+  '[a
+    abbr
+    address
+    area
+    article
+    aside
+    audio
+    b
+    base
+    bdi
+    bdo
+    blockquote
+    body
+    br
+    button
+    canvas
+    caption
+    cite
+    code
+    col
+    colgroup
+    command
+    datalist
+    dd
+    del
+    details
+    dfn
+    div
+    dl
+    dt
+    em
+    embed
+    fieldset
+    figcaption
+    figure
+    footer
+    form
+    h1
+    h2
+    h3
+    h4
+    h5
+    h6
+    head
+    header
+    hgroup
+    hr
+    html
+    i
+    iframe
+    img
+    input
+    ins
+    kbd
+    keygen
+    label
+    legend
+    li
+    link
+    map
+    mark
+    math
+    menu
+    meta
+    meter
+    nav
+    noscript
+    object
+    ol
+    optgroup
+    option
+    output
+    p
+    param
+    pre
+    progress
+    q
+    rp
+    rt
+    ruby
+    s
+    samp
+    script
+    section
+    select
+    small
+    source
+    span
+    strong
+    style
+    sub
+    summary
+    sup
+    svg
+    table
+    tbody
+    td
+    textarea
+    tfoot
+    th
+    thead
+    time
+    title
+    tr
+    track
+    u
+    ul
+    var
+    video
+    wbr])
+
+#+clj
+(defn- gen-type-selector-def [tag]
+  `(deftypeselector ~tag))
+
+(defmacro ^:private gen-type-selector-defs []
+  `(do
+     ~@(map gen-type-selector-def html-tags)))
+
+(gen-type-selector-defs)
