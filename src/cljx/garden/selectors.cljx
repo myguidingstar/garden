@@ -93,6 +93,8 @@
   same property. All arguments to the function must satisfy
   garden.protocols.ICssSelector.
 
+  Optionally fn-tail may be passed to create a structual pseudo class.
+
   Example:
 
     (deftypeselector a)
@@ -104,10 +106,24 @@
     (p/selector (a hover))
     ;; => \"a:hover\"
 
+  Example:
+
+    (defpseudoclass not [x]
+      (p/selector x))
+    ;; => #'user/not
+    (p/selector (a hover (not \"span\"))
+    ;; => a:hover:not(span)
+
     ;; Where p/selector is garden.protocols/selector
   "
-  [sym]
-  `(def ~sym (~(selector-fn) ~(str \: (name sym)))))
+  [sym & fn-tail]
+  (if (seq fn-tail)
+    (let [fn1 `(fn ~fn-tail)]
+      `(defn ~sym [& args#]
+         (~(do-selector-fn)
+          (str \: ~(name sym) "(" (p/selector (apply ~fn1 args#)) ")"))))
+    `(def ~sym
+       (~(do-selector-fn) ~(str \: (name sym))))))
 
 
 (defmacro defpseudoelement
@@ -133,35 +149,8 @@
     ;; Where p/selector is garden.protocols/selector
   "
   [sym]
-  `(def ~sym (~(selector-fn) ~(str "::" (name sym)))))
+  `(def ~sym (~(do-selector-fn) ~(str "::" (name sym)))))
 
-
-(defmacro defstructuralpseudoclass
-  "Define a function named sym for creating a CSS Structural
-  pseudo-classes selector. When called the function returns a reified
-  instance which satisfies clojure.lang.IFn and
-  garden.protocols.ICssSelector. The return value of fn-tail is used to
-  format the argument portion of the selector and must satisfy
-  garden.protocols.ICssSelector.
-
-  Example:
-
-    (defstructuralpseudoclass not [x]
-      (p/selector x))
-    ;; => #'user/not
-    (p/selector (not \"a\"))
-    ;; => #<selectors$not$f20254$reify__20257 garden.selectors$not$f20254$reify__20257@35f4fd63>
-    (p/selector ((not \"a\") \"hover\"))
-    ;; => \":not(a)hover\"
-
-    ;; Where p/selector is garden.protocols/selector
-  "
-  [sym & fn-tail]
-  (let [fmt (str \: (name sym) "(%s)")
-        fn1 `(fn ~fn-tail)]
-    `(defn ~sym [& args#]
-       (~(selector-fn) (format ~fmt
-                               (p/selector (apply ~fn1 args#)))))))
 
 ;;----------------------------------------------------------------------
 ;; Type selectors classes
@@ -340,10 +329,10 @@
 ;;----------------------------------------------------------------------
 ;; Structural pseudo classes
 
-(defstructuralpseudoclass lang [language]
+(defpseudoclass lang [language]
   (name language))
 
-(defstructuralpseudoclass not [selector]
+(defpseudoclass not [selector]
   (p/selector selector))
 
 ;; SEE: http://www.w3.org/TR/selectors/#nth-child-pseudo
@@ -369,10 +358,10 @@
         js/Error.
         (str "Invalid value " (pr-str s)))))))
 
-(defstructuralpseudoclass nth-child [x] (nth-x x))
-(defstructuralpseudoclass nth-last-child [x] (nth-x x))
-(defstructuralpseudoclass nth-of-type [x] (nth-x x))
-(defstructuralpseudoclass nth-last-of-type [x] (nth-x x))
+(defpseudoclass nth-child [x] (nth-x x))
+(defpseudoclass nth-last-child [x] (nth-x x))
+(defpseudoclass nth-of-type [x] (nth-x x))
+(defpseudoclass nth-last-of-type [x] (nth-x x))
 
 ;;----------------------------------------------------------------------
 ;; Pseudo elements
