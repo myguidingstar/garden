@@ -1,4 +1,5 @@
 (ns garden.selectors
+  "Macros and functions for working with CSS selectors."
   (:refer-clojure :exclude [map meta not #+clj time #+clj var
                             empty first])
   (:require [garden.protocols :as p])
@@ -9,7 +10,15 @@
            clojure.lang.Symbol
            clojure.lang.IFn))
 
-(extend-protocol p/ISelector
+;; TODO:
+;; * Implement +, ~, and > combinators
+;;   SEE: http://www.w3.org/TR/selectors/#combinators
+;; * Generic defselector (for prefixes)
+;; * Account for meta in macros
+;; * Function for computing specificity
+;;   SEE: http://www.w3.org/TR/selectors/#specificity
+
+(extend-protocol p/ICssSelector
   #+clj String
   #+cljs string
   (selector [this] this)
@@ -24,122 +33,135 @@
 ;; Macro helpers
 
 #+clj
-(defn- invoke-specs
-  "Helper for generating the clojure.lang.IFn spec for selector
-  macros. Generated specs look like:
-
-    (invoke [_ a ...]
-      (str (p/selector x) (p/selector a) ...))"
-  [x] 
-  (let [map clojure.core/map
-        syms (map (comp symbol str char) (range 0x61 0x75))
-        argslists (map
-                   (fn [i]
-                     (vec (cons '_ (take i syms))))
-                   (range 21)) ;; Only to fully satisfy IFn.  
-        specs (map
-               (fn [args]
-                 (list 'invoke args
-                       (concat `(str (p/selector ~x))
-                               (map
-                                (fn [a]
-                                  `(p/selector ~a))
-                                (rest args)))))
-               argslists)]
-    specs))
-
-#+clj
-(defn- ifn-impl [x]
-  `(IFn
-    ~@(invoke-specs x)))
-
-#+clj
-(defn- selector-impl [x]
-  `(p/ISelector
-    (~'selector [~'_]
-      (p/selector ~x))))
+(defn- do-selector-fn []
+  (let [fn-sym (gensym "f")
+        arg (gensym "x")
+        invoke-specs (clojure.core/map
+                      (fn [i syms]
+                        (let [argslist (vec (take i syms))
+                              body `(~fn-sym (str (p/selector ~arg)
+                                                  ~@(clojure.core/map
+                                                     (fn [sym]
+                                                       `(p/selector ~sym))
+                                                     (rest argslist))))]
+                          `(~'invoke ~argslist ~body)))
+                      (range 1 22)
+                      (repeat '[_ a b c d e f g h i j k l m n o p q r s t]))
+        impl `(reify
+                p/ICssSelector
+                (~'selector [~'_]
+                  (p/selector ~arg))
+                IFn
+                ~@invoke-specs)]
+    `(fn ~fn-sym [~arg] ~impl)))
 
 ;;----------------------------------------------------------------------
 ;; Macros
 
-;; TODO: Provide more description in the docstring.
 (defmacro deftypeselector
   "Define a reified instance named sym which satisfies
-  clojure.lang.IFn and garden.protocols.ISelector.
+  clojure.lang.IFn and garden.protocols.ICssSelector for creating a
+  CSS type selector. This instance doubles as both a function and a
+  literal (when passed to garden.protocols/selector). When the
+  function is called it will return a new instance that pocesses the
+  same property. All arguments to the function must satisfy
+  garden.protocols.ICssSelector.
 
   Example:
 
     (deftypeselector a)
     ;; => #'user/a
-
     (a \":hover\")
-    ;; => \"a:hover\"
-
+    ;; => #<selectors$f16521$reify__16523 garden.selectors$f16521$reify__16523@63be555>
     (p/selector a)
     ;; => \"a\"
+    (p/selector (a \":hover\"))
+    ;; => \"a:hover\"
+
+    ;; Where p/selector is garden.protocols/selector
   "
   [sym]
-  `(def ~sym
-     (reify
-       ~@(selector-impl `'~sym)
-       ~@(ifn-impl `'~sym))))
+  `(def ~sym (~(do-selector-fn) ~(name sym))))
 
 
-;; TODO: Provide more description in the docstring.
 (defmacro defpseudoclass
   "Define a reified instance named sym which satisfies
-  clojure.lang.IFn and garden.protocols.ISelector.
+  clojure.lang.IFn and garden.protocols.ICssSelector for creating a CSS
+  pseudo class. This instance doubles as both a function and a
+  literal (when passed to garden.protocols/selector). When the
+  function is called it will return a new instance that pocesses the
+  same property. All arguments to the function must satisfy
+  garden.protocols.ICssSelector.
 
   Example:
 
+    (deftypeselector a)
+    ;; => #'user/a
     (defpseudoclass hover)
     ;; => #'user/hover
+    (hover)
+    ;; => #<selectors$f16962$reify__16964 garden.selectors$f16962$reify__16964@520f79c5>
+    (p/selector (a hover))
+    ;; => \"a:hover\"
 
-    (hover \"[type=text]\")
-    ;; => \":hover[type=text]\"
-
-    (p/selector a)
-    ;; => \":hover\"
+    ;; Where p/selector is garden.protocols/selector
   "
   [sym]
-  (let [s (str \: (name sym))]
-    `(def ~sym
-       (reify
-         ~@(selector-impl s)
-         ~@(ifn-impl s)))))
+  `(def ~sym (~(selector-fn) ~(str \: (name sym)))))
+
+
+(defmacro defpseudoelement
+  "Define a reified instance named sym which satisfies
+  clojure.lang.IFn and garden.protocols.ICssSelector for creating a CSS
+  pseudo element. This instance doubles as both a function and a
+  literal (when passed to garden.protocols/selector). When the
+  function is called it will return a new instance that pocesses the
+  same property. All arguments to the function must satisfy
+  garden.protocols.ICssSelector.
+
+  Example:
+
+    (deftypeselector p)
+    ;; => #'user/p
+    (defpseudoelement first-letter)
+    ;; => #'user/first-letter
+    (first-letter)
+    ;; => #<selectors$f22178$reify__22180 garden.selectors$f22178$reify__22180@1c82315b>
+    (p/selector (p first-letter))
+    ;; => \"p::first-letter\"
+
+    ;; Where p/selector is garden.protocols/selector
+  "
+  [sym]
+  `(def ~sym (~(selector-fn) ~(str "::" (name sym)))))
 
 
 (defmacro defstructuralpseudoclass
   "Define a function named sym for creating a CSS Structural
   pseudo-classes selector. When called the function returns a reified
   instance which satisfies clojure.lang.IFn and
-  garden.protocols.ISelector. The return value of fn-tail is used to
+  garden.protocols.ICssSelector. The return value of fn-tail is used to
   format the argument portion of the selector and must satisfy
-  garden.protocols.ISelector.
+  garden.protocols.ICssSelector.
 
   Example:
 
     (defstructuralpseudoclass not [x]
       (p/selector x))
     ;; => #'user/not
-
     (p/selector (not \"a\"))
-    ;; => \":not(a)\"
+    ;; => #<selectors$not$f20254$reify__20257 garden.selectors$not$f20254$reify__20257@35f4fd63>
+    (p/selector ((not \"a\") \"hover\"))
+    ;; => \":not(a)hover\"
 
-    ((not \"a\") \"[src^=a]\")
-    ;; => \":not(a)[src^=a]\"
+    ;; Where p/selector is garden.protocols/selector
   "
   [sym & fn-tail]
   (let [fmt (str \: (name sym) "(%s)")
-        fn1 `(fn ~fn-tail)
-        fn2 (let [args (gensym "args")]
-              (list `fn `[& ~args]
-                    (let [x `(format ~fmt (p/selector (apply ~fn1 ~args)))
-                          s `(reify
-                               ~@(selector-impl x)
-                               ~@(ifn-impl x))]
-                      s)))]
-    `(def ~sym ~fn2)))
+        fn1 `(fn ~fn-tail)]
+    `(defn ~sym [& args#]
+       (~(selector-fn) (format ~fmt
+                               (p/selector (apply ~fn1 args#)))))))
 
 ;;----------------------------------------------------------------------
 ;; Type selectors classes
@@ -342,7 +364,7 @@
       m
       (throw
        (#+clj
-        Exception.
+        IllegalArgumentException.
         #+cljs
         js/Error.
         (str "Invalid value " (pr-str s)))))))
@@ -351,6 +373,14 @@
 (defstructuralpseudoclass nth-last-child [x] (nth-x x))
 (defstructuralpseudoclass nth-of-type [x] (nth-x x))
 (defstructuralpseudoclass nth-last-of-type [x] (nth-x x))
+
+;;----------------------------------------------------------------------
+;; Pseudo elements
+
+(defpseudoelement after)
+(defpseudoelement before)
+(defpseudoelement first-letter)
+(defpseudoelement first-line)
 
 ;;----------------------------------------------------------------------
 ;; Special selectors

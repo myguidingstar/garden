@@ -1,4 +1,4 @@
 (ns garden.protocols)
 
-(defprotocol ISelector
+(defprotocol ICssSelector
   (selector [this] "Render this as a CSS selector"))
