@@ -13,7 +13,6 @@
 ;; TODO:
 ;; * Implement +, ~, and > combinators
 ;;   SEE: http://www.w3.org/TR/selectors/#combinators
-;; * Generic defselector (for prefixes)
 ;; * Account for meta in macros
 ;; * Function for computing specificity
 ;;   SEE: http://www.w3.org/TR/selectors/#specificity
@@ -58,7 +57,7 @@
 ;;----------------------------------------------------------------------
 ;; Macros
 
-(defmacro deftypeselector
+(defmacro defselector
   "Define a reified instance named sym which satisfies
   clojure.lang.IFn and garden.protocols.ICssSelector for creating a
   CSS type selector. This instance doubles as both a function and a
@@ -69,7 +68,7 @@
 
   Example:
 
-    (deftypeselector a)
+    (defselector a)
     ;; => #'user/a
     (a \":hover\")
     ;; => #<selectors$f16521$reify__16523 garden.selectors$f16521$reify__16523@63be555>
@@ -80,9 +79,17 @@
 
     ;; Where p/selector is garden.protocols/selector
   "
-  [sym]
-  `(def ~sym (~(do-selector-fn) ~(name sym))))
+  ([sym]
+     `(defselector ~sym ~(name sym)))
+  ([sym strval]
+     (assert (string? strval))
+     `(def ~sym (~(do-selector-fn) ~strval))))
 
+(defmacro defclass [sym]
+  `(defselector ~sym ~(str "." (name sym))))
+
+(defmacro defid [sym]
+  `(defselector ~sym ~(str "#" (name sym))))
 
 (defmacro defpseudoclass
   "Define a reified instance named sym which satisfies
@@ -97,7 +104,7 @@
 
   Example:
 
-    (deftypeselector a)
+    (defselector a)
     ;; => #'user/a
     (defpseudoclass hover)
     ;; => #'user/hover
@@ -125,7 +132,6 @@
     `(def ~sym
        (~(do-selector-fn) ~(str \: (name sym))))))
 
-
 (defmacro defpseudoelement
   "Define a reified instance named sym which satisfies
   clojure.lang.IFn and garden.protocols.ICssSelector for creating a CSS
@@ -137,7 +143,7 @@
 
   Example:
 
-    (deftypeselector p)
+    (defselector p)
     ;; => #'user/p
     (defpseudoelement first-letter)
     ;; => #'user/first-letter
@@ -149,8 +155,7 @@
     ;; Where p/selector is garden.protocols/selector
   "
   [sym]
-  `(def ~sym (~(do-selector-fn) ~(str "::" (name sym)))))
-
+  `(defselector ~sym ~(str "::" (name sym))))
 
 ;;----------------------------------------------------------------------
 ;; Type selectors classes
@@ -269,7 +274,7 @@
 
 #+clj
 (defn- gen-type-selector-def [tag]
-  `(deftypeselector ~tag))
+  `(defselector ~tag))
 
 (defmacro ^:private gen-type-selector-defs []
   `(do
@@ -374,6 +379,6 @@
 ;;----------------------------------------------------------------------
 ;; Special selectors
 
-(deftypeselector
+(defselector
   ^{:doc "Parent selector."}
   &)
