@@ -1,8 +1,9 @@
 (ns garden.selectors
   "Macros and functions for working with CSS selectors."
-  (:refer-clojure :exclude [map meta not #+clj time #+clj var
+  (:refer-clojure :exclude [+ - > map meta not #+clj time #+clj var
                             empty first])
-  (:require [garden.protocols :as p])
+  (:require [garden.protocols :as p]
+            [clojure.string :as string])
   #+cljs
   (:require-macros [garden.selectors :refer :all])
   #+clj
@@ -11,11 +12,7 @@
            clojure.lang.IFn))
 
 ;; TODO:
-;; * Implement +, ~, and > combinators
-;;   SEE: http://www.w3.org/TR/selectors/#combinators
 ;; * Account for meta in macros
-;; * Function for computing specificity
-;;   SEE: http://www.w3.org/TR/selectors/#specificity
 
 (extend-protocol p/ICssSelector
   #+clj String
@@ -377,8 +374,84 @@
 (defpseudoelement first-line)
 
 ;;----------------------------------------------------------------------
+;; Selectors combinators
+
+;; SEE: http://www.w3.org/TR/selectors/#combinators
+
+(defn +
+  "Adjacent sibling combinator."
+  [a b]
+  (str (p/selector a) " + " (p/selector b)))
+
+(defn -
+  "Adjacent sibling combinator."
+  [a b]
+  (str (p/selector a) " ~ " (p/selector b)))
+
+(defn >
+  "Child combinator."
+  ([a]
+     (p/selector a))
+  ([a b]
+     (str (p/selector a) " > " (p/selector b)))
+  ([a b & more]
+     (reduce > (> a b) more)))
+
+;;----------------------------------------------------------------------
 ;; Special selectors
 
 (defselector
   ^{:doc "Parent selector."}
   &)
+
+;;----------------------------------------------------------------------
+;; Specificity
+
+;; SEE: http://www.w3.org/TR/selectors/#specificity
+
+(defn- lex-specificity [s]
+  (let [id-selector-re #"^\#[a-zA-Z][\w-]*"
+        class-selector-re #"^\.[a-zA-Z][\w-]*"
+        attribute-selector-re #"^\[[^\]]*\]"
+        type-selector-re #"^[a-zA-Z][\w-]"
+        pseudo-class-re #"^:[a-zA-Z][\w-]*(?:\([^\)]+\))?"
+        pseudo-element-re #"^::[a-zA-Z][\w-]*"]
+    (some
+     (fn [[re k]]
+       (if-let [m (re-find re s)]
+         [m k]))
+     [[id-selector-re :a]
+      [class-selector-re :b]
+      [attribute-selector-re :b]
+      [pseudo-class-re :b]
+      [type-selector-re :c]
+      [pseudo-element-re :c]])))
+
+(defn- specificity* [selector]
+  (let [s (p/selector selector)
+        score {:a 0 :b 0 :c 0}]
+    (loop [s s, score score]
+      (if (empty? s)
+        score
+        (if-let [[m k] (lex-specificity s)]
+          ;; The negation psedo class is a special case.
+          (if-let [[_ inner] (re-find #"^:not\(([^\)]*)\)" m)]
+            (recur (subs s (count m))
+                   (merge-with clojure.core/+ score (specificity* inner)))
+            (recur (subs s (count m)) (update-in score [k] inc)))
+          (recur (subs s 1) score))))))
+
+(defn specificity
+  "Calculate a CSS3 selector's specificity.
+  
+  Ex.
+    (specificity \"#s12:not(FOO)\")
+    ;; => 101
+  " 
+  [selector]
+  (let [{:keys [a b c]} (specificity* selector)
+        sv (string/replace (str a b c) #"^0*" "")]
+    (if (empty? sv)
+      0
+      #+clj (Integer. sv)
+      #+cljs (js/parseInt sv))))
