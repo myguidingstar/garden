@@ -6,7 +6,7 @@
             [cemerick.cljs.test]
             [garden.selectors :as s]
             [garden.protocols :as p])
-  #+cljs (:require-macros [cemerick.cljs.test :refer [deftest is testing]]))
+  #+cljs (:require-macros [cemerick.cljs.test :refer [deftest is testing are]]))
 
 (deftest selector-test
   (testing "selector?"
