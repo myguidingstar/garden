@@ -5,7 +5,13 @@
   (:require [garden.protocols :as p]
             [clojure.string :as string])
   #+cljs
-  (:require-macros [garden.selectors :refer :all])
+  (:require-macros [garden.selectors :refer [defselector
+                                             defid
+                                             defclass
+                                             defpseudoclass
+                                             defpseudoelement
+                                             gen-type-selector-defs
+                                             gen-pseudo-class-defs]])
   #+clj
   (:import clojure.lang.Keyword
            clojure.lang.Symbol
@@ -28,41 +34,273 @@
   Symbol
   (selector [this] (name this)))
 
-;;----------------------------------------------------------------------
-;; Macro helpers
+(deftype CssSelector [x]
+  p/ICssSelector
+  (selector [_]
+    (p/selector x))
 
-#+clj
-(defn- do-selector-fn []
-  (let [fn-sym (gensym "f")
-        arg (gensym "x")
-        invoke-specs (clojure.core/map
-                      (fn [i syms]
-                        (let [argslist (vec (take i syms))
-                              body `(~fn-sym (str (p/selector ~arg)
-                                                  ~@(clojure.core/map
-                                                     (fn [sym]
-                                                       `(p/selector ~sym))
-                                                     (rest argslist))))]
-                          `(~'invoke ~argslist ~body)))
-                      (range 1 22)
-                      (repeat '[_ a b c d e f g h i j k l m n o p q r s t]))
-        impl `(reify
-                p/ICssSelector
-                (~'selector [~'_]
-                  (p/selector ~arg))
-                IFn
-                ~@invoke-specs)]
-    `(fn ~fn-sym [~arg] ~impl)))
+  IFn
+  (invoke [_]
+    (CssSelector. (str (p/selector x))))
+  (invoke [_ a]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a))))
+  (invoke [_ a b]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b))))
+  (invoke [_ a b c]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c))))
+  (invoke [_ a b c d]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d))))
+  (invoke [_ a b c d e]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e))))
+  (invoke [_ a b c d e f]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f))))
+  (invoke [_ a b c d e f g]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g))))
+  (invoke [_ a b c d e f g h]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h))))
+  (invoke [_ a b c d e f g h i]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i))))
+  (invoke [_ a b c d e f g h i j]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j))))
+  (invoke [_ a b c d e f g h i j k]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k))))
+  (invoke [_ a b c d e f g h i j k l]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l))))
+  (invoke [_ a b c d e f g h i j k l m]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l)
+                       (p/selector m))))
+  (invoke [_ a b c d e f g h i j k l m n]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l)
+                       (p/selector m)
+                       (p/selector n))))
+  (invoke [_ a b c d e f g h i j k l m n o]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l)
+                       (p/selector m)
+                       (p/selector n)
+                       (p/selector o))))
+  (invoke [_ a b c d e f g h i j k l m n o p]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l)
+                       (p/selector m)
+                       (p/selector n)
+                       (p/selector o)
+                       (p/selector p))))
+  (invoke [_ a b c d e f g h i j k l m n o p q]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l)
+                       (p/selector m)
+                       (p/selector n)
+                       (p/selector o)
+                       (p/selector p)
+                       (p/selector q))))
+  (invoke [_ a b c d e f g h i j k l m n o p q r]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l)
+                       (p/selector m)
+                       (p/selector n)
+                       (p/selector o)
+                       (p/selector p)
+                       (p/selector q)
+                       (p/selector r))))
+  (invoke [_ a b c d e f g h i j k l m n o p q r s]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l)
+                       (p/selector m)
+                       (p/selector n)
+                       (p/selector o)
+                       (p/selector p)
+                       (p/selector q)
+                       (p/selector r)
+                       (p/selector s))))
+  (invoke [_ a b c d e f g h i j k l m n o p q r s t]
+    (CssSelector. (str (p/selector x)
+                       (p/selector a)
+                       (p/selector b)
+                       (p/selector c)
+                       (p/selector d)
+                       (p/selector e)
+                       (p/selector f)
+                       (p/selector g)
+                       (p/selector h)
+                       (p/selector i)
+                       (p/selector j)
+                       (p/selector k)
+                       (p/selector l)
+                       (p/selector m)
+                       (p/selector n)
+                       (p/selector o)
+                       (p/selector p)
+                       (p/selector q)
+                       (p/selector r)
+                       (p/selector s)
+                       (p/selector t)))))
+
+(defn selector [x]
+  (CssSelector. x))
 
 ;;----------------------------------------------------------------------
 ;; Macros
 
-(defmacro selector [x]
-  `(~(do-selector-fn) ~x))
-
 (defmacro defselector
-  "Define a reified instance named sym which satisfies
-  clojure.lang.IFn and garden.protocols.ICssSelector for creating a
+  "Define an instance of CssSelector named sym for creating a
   CSS type selector. This instance doubles as both a function and a
   literal (when passed to garden.protocols/selector). When the
   function is called it will return a new instance that pocesses the
@@ -74,7 +312,7 @@
     (defselector a)
     ;; => #'user/a
     (a \":hover\")
-    ;; => #<selectors$f16521$reify__16523 garden.selectors$f16521$reify__16523@63be555>
+    ;; => #<CssSelector garden.selectors.CssSelector@7c42c2a9>
     (p/selector a)
     ;; => \"a\"
     (p/selector (a \":hover\"))
@@ -94,8 +332,7 @@
   `(defselector ~sym ~(str "#" (name sym))))
 
 (defmacro defpseudoclass
-  "Define a reified instance named sym which satisfies
-  clojure.lang.IFn and garden.protocols.ICssSelector for creating a CSS
+  "Define an instance of CssSelector named sym for creating a CSS
   pseudo class. This instance doubles as both a function and a
   literal (when passed to garden.protocols/selector). When the
   function is called it will return a new instance that pocesses the
@@ -111,7 +348,7 @@
     (defpseudoclass hover)
     ;; => #'user/hover
     (hover)
-    ;; => #<selectors$f16962$reify__16964 garden.selectors$f16962$reify__16964@520f79c5>
+    ;; => #<CssSelector garden.selectors.CssSelector@2a0ca6e1>
     (p/selector (a hover))
     ;; => \"a:hover\"
 
@@ -133,8 +370,7 @@
     `(defselector ~sym ~(str \: (name sym)))))
 
 (defmacro defpseudoelement
-  "Define a reified instance named sym which satisfies
-  clojure.lang.IFn and garden.protocols.ICssSelector for creating a CSS
+  "Define an instance of CssSelector named sym for creating a CSS
   pseudo element. This instance doubles as both a function and a
   literal (when passed to garden.protocols/selector). When the
   function is called it will return a new instance that pocesses the
@@ -148,7 +384,7 @@
     (defpseudoelement first-letter)
     ;; => #'user/first-letter
     (first-letter)
-    ;; => #<selectors$f22178$reify__22180 garden.selectors$f22178$reify__22180@1c82315b>
+    ;; => #<CssSelector garden.selectors.CssSelector@20aef718>
     (p/selector (p first-letter))
     ;; => \"p::first-letter\"
 
