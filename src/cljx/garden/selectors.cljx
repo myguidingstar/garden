@@ -11,6 +11,9 @@
            clojure.lang.Symbol
            clojure.lang.IFn))
 
+(defn selector? [x]
+  (satisfies? p/ICssSelector x))
+
 ;; TODO:
 ;; * Account for meta in macros
 
@@ -54,6 +57,9 @@
 ;;----------------------------------------------------------------------
 ;; Macros
 
+(defmacro selector [x]
+  `(~(do-selector-fn) ~x))
+
 (defmacro defselector
   "Define a reified instance named sym which satisfies
   clojure.lang.IFn and garden.protocols.ICssSelector for creating a
@@ -77,10 +83,9 @@
     ;; Where p/selector is garden.protocols/selector
   "
   ([sym]
-     `(defselector ~sym ~(name sym)))
+     `(def ~sym (selector ~(name sym))))
   ([sym strval]
-     (assert (string? strval))
-     `(def ~sym (~(do-selector-fn) ~strval))))
+     `(def ~sym (selector ~strval))))
 
 (defmacro defclass [sym]
   `(defselector ~sym ~(str "." (name sym))))
@@ -124,10 +129,8 @@
   (if (seq fn-tail)
     (let [fn1 `(fn ~fn-tail)]
       `(defn ~sym [& args#]
-         (~(do-selector-fn)
-          (str \: ~(name sym) "(" (p/selector (apply ~fn1 args#)) ")"))))
-    `(def ~sym
-       (~(do-selector-fn) ~(str \: (name sym))))))
+         (selector (str \: ~(name sym) "(" (p/selector (apply ~fn1 args#)) ")"))))
+    `(defselector ~sym ~(str \: (name sym)))))
 
 (defmacro defpseudoelement
   "Define a reified instance named sym which satisfies
@@ -374,6 +377,45 @@
 (defpseudoelement first-line)
 
 ;;----------------------------------------------------------------------
+;; Attribute selectors
+
+;; SEE: http://www.w3.org/TR/selectors/#attribute-selectors
+
+(defn attr
+  ([attr-name]
+     (selector (str \[ (name attr-name) \])))
+  ([attr-name op attr-value]
+     (let [v (name attr-value)
+           ;; Wrap the value in quotes unless it's already
+           ;; quoted to prevent emitting bad selectors. 
+           v (if (re-matches #"\"(\\|[^\"])*\"|'(\\|[^\'])*'" v)
+               v
+               (pr-str v))]
+       (selector (str \[ (name attr-name) (name op) v \])))))
+
+(defn attr= [attr-name attr-value]
+  (attr attr-name "=" attr-value))
+
+(defn attr-contains [attr-name attr-value]
+  (attr attr-name "~=" attr-value))
+
+(defn attr-begins-with [attr-name attr-value]
+  (attr attr-name "^=" attr-value))
+
+;; TODO: This needs a better name.
+(defn attr-begins-with* [attr-name attr-value]
+  (attr attr-name "|=" attr-value))
+
+(def attr-starts-with attr-begins-with)
+(def attr-starts-with* attr-begins-with*)
+
+(defn attr-ends-with [attr-name attr-value]
+  (attr attr-name "$=" attr-value))
+
+(defn attr-matches [attr-name attr-value]
+  (attr attr-name "*=" attr-value))
+
+;;----------------------------------------------------------------------
 ;; Selectors combinators
 
 ;; SEE: http://www.w3.org/TR/selectors/#combinators
@@ -384,7 +426,7 @@
   (str (p/selector a) " + " (p/selector b)))
 
 (defn -
-  "Adjacent sibling combinator."
+  "General sibling combinator."
   [a b]
   (str (p/selector a) " ~ " (p/selector b)))
 
@@ -434,7 +476,7 @@
       (if (empty? s)
         score
         (if-let [[m k] (lex-specificity s)]
-          ;; The negation psedo class is a special case.
+          ;; The negation pseudo class is a special case.
           (if-let [[_ inner] (re-find #"^:not\(([^\)]*)\)" m)]
             (recur (subs s (count m))
                    (merge-with clojure.core/+ score (specificity* inner)))
@@ -444,9 +486,12 @@
 (defn specificity
   "Calculate a CSS3 selector's specificity.
   
-  Ex.
+  Example:
+
     (specificity \"#s12:not(FOO)\")
     ;; => 101
+    (specificity (a hover))
+    ;; => 10
   " 
   [selector]
   (let [{:keys [a b c]} (specificity* selector)
